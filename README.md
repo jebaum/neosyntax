@@ -20,3 +20,7 @@ augroup Neosyntax
 augroup END
 ```
 Open up `neosyntax.py` from this plugin, and whenever you write to it, the neovim instance with the `nvim.py` test file open should run `:UpdateRemotePlugins`, quit, reopen, and then run `:HighlightBuffer`, which currently is the command that will highlight the file using pygments. This allows for very quick and easy debugging.
+
+`connect.sh` will open up an `ipython3` console that automatically loads pygments and connects to a neovim instance listening to a socket at `/tmp/nvim`. This is useful for quickly testing out the API.
+
+`printtokens.py` takes one filename as an argument, and will print out the tokens found in the file.
