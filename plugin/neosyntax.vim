@@ -1,0 +1,1 @@
+command! HighlightBuffer :call HighlightBuffer()
