@@ -53,8 +53,9 @@ class Neosyntax(object):
     @neovim.function('UnHighlightBuffer', sync=False)
     def unhighlight_buffer(self, args):
         buf     = self.nvim.buffers[0] # TODO can't hardcode this
-        buf.clear_highlight(src_id=0, line_start=0, line_end=1000, async=True)
-        buf.clear_highlight(src_id=1, line_start=0, line_end=1000, async=True)
+        end     = len([line for line in buf])
+        buf.clear_highlight(src_id=1, line_start=0, line_end=end, async=True)
+        buf.clear_highlight(src_id=2, line_start=0, line_end=end, async=True)
 
 
     @neovim.function('HighlightBuffer', sync=False)
@@ -64,8 +65,9 @@ class Neosyntax(object):
         #   still use textchangedi, but also use a timer, and if the highlight is less than X seconds old, don't recompute, just return
         #   in insert mode, only recompute highlight groups on the line, or couple of lines surrounding the cursor
         #   get the viewport of the current window, render that region only or first before the rest of the buffer
-        mylexer = pygments.lexers.PythonLexer()
-        buf     = self.nvim.buffers[0] # TODO can't hardcode this
+        mylexer = pygments.lexers.PythonLexer() # TODO  can't hardcode this, need to guess the correct lexer based on buffer name and contents
+                                                # also, should cache a map of buffer -> lexer so this doesn't have to be done every time
+        buf     = self.nvim.buffers[0] # TODO can't hardcode this either
         # TODO - can I be more intelligent than doing the whole buffer every time? just the area around a change?
         fullbuf = [line for line in buf] # TODO is this necessary / efficient?
 
@@ -74,7 +76,7 @@ class Neosyntax(object):
         self.srcset = not self.srcset
         arglist = []
         for linenum, line in enumerate(fullbuf, start=0):
-            # TODO this is not only inefficient, it highlights things in correctly if they require multiple lines of context to identify
+            # TODO this is not only inefficient, it highlights things incorrectly if they require multiple lines of context to identify
             # need to figure out a way to send entire file to get_tokens_unprocessed() at once, while maintaining knowledge about line numbers
             for (index, tokentype, value) in mylexer.get_tokens_unprocessed(line):
                 # XXX issue with highlight groups
