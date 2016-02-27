@@ -44,6 +44,10 @@ class Neosyntax(object):
         # insert mode, then handled once you leave insert mode. Just have to remove the TextChangedI autocmd
         # and keep the TextChanged one (no I).
         # This is less than ideal for lots of situations, but is better than nothing
+
+        # TODO figure out a way to queue these calls somehow? with the swapping src_id strategy,
+        # flicker is gone when typing fast in insert mode, but typing too fast can still cause a
+        # call backlog that can either crash the python host or just appear as lots of lag to the user
         self.highlight_buffer(None)
 
     @neovim.function('UnHighlightBuffer', sync=False)
