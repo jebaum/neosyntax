@@ -1,7 +1,7 @@
 # Neosyntax
 Neovim remote plugin to do syntax highlighting in a separate process using pygments
 
-### Current development procedure:
+### Current development procedure
 I have a file called `nvim.py` that I'm using as a test python file to see how the highlighting works.
 
 Start up a tmux session, which by default should have its pane identifier be "0:1.1", assuming no other tmux windows are open (this may also vary with your tmux config).
@@ -16,7 +16,7 @@ augroup Neosyntax
     autocmd!
     autocmd VimLeavePre * UpdateRemotePlugins
     autocmd BufEnter nvim.py syntax off | HighlightBuffer
-    autocmd BufWritePost neosyntax.py call system("tmux send-keys -t '0:1.1' ',q'")
+    autocmd BufWritePost neosyntax.py call system("tmux send-keys -t '0:1.1' 'ZQ'")
 augroup END
 ```
 Open up `neosyntax.py` from this plugin, and whenever you write to it, the neovim instance with the `nvim.py` test file open should run `:UpdateRemotePlugins`, quit, reopen, and then run `:HighlightBuffer`, which currently is the command that will highlight the file using pygments. This allows for very quick and easy debugging.
