@@ -10,10 +10,29 @@ class Neosyntax(object):
     def __init__(self, nvim):
         self.nvim = nvim
 
+    @neovim.autocmd('TextChanged', pattern='*.py', eval='expand("<afile>")', sync=False)
+    def autocmd_handler(self, filename):
+        self.highlight_buffer(None)
+
+    @neovim.autocmd('TextChangedI', pattern='*.py', eval='expand("<afile>")', sync=False)
+    def autocmd_handler(self, filename):
+        # TODO I was hoping that performance with syntax highlighting being done by this autocmd
+        # would be comparable to plain old :syntax off and without this plugin
+        # I think it is better, although I'll have to find a way to test that empirically
+        # But, it still isn't as good as I hoped. Some flickering is still present
+        # This may be a limitation of the tui and its ability to process remote api calls
+        # Maybe this will work better in the eventual gui?
+        # If nothing else, this function gives the option to have syntax highlighting turned off during
+        # insert mode, then handled once you leave insert mode. Just have to remove the TextChangedI autocmd
+        # and keep the TextChanged one (no I).
+        # This is less than ideal for lots of situations, but is better than nothing
+        self.highlight_buffer(None)
+
     @neovim.function('HighlightBuffer', sync=False)
     def highlight_buffer(self, args):
         mylexer = pygments.lexers.PythonLexer()
         buf     = self.nvim.buffers[0] # TODO can't hardcode this
+        # TODO - can I be more intelligent than doing the whole buffer every time? just the area around a change?
         fullbuf = [line for line in buf] # TODO is this necessary / efficient?
 
         # TODO need to subscribe to appropriate events (TextChanged[I]?) to run this function as needed
