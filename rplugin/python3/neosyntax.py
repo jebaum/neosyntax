@@ -11,6 +11,18 @@ class Neosyntax(object):
         self.nvim    = nvim
         #   swap src_ids. from brefdl: allocate two ids, and swap, adding before clearing, so things that don't change won't appear to flicker
         self.srcset  = True
+        self.pygmap  = {}
+        t = pygments.token
+        self.pygmap[t.Name.Builtin] = "Function"
+        self.pygmap[t.Name.Builtin.Pseudo] = "Boolean"
+        self.pygmap[t.Comment.Sinle] = "Comment"
+        self.pygmap[t.Comment.Hashbang] = "Comment"
+        self.pygmap[t.Keyword.Namespace] = "Include"
+        self.pygmap[t.Literal.Number.Integer] = "Number"
+        self.pygmap[t.Literal.String.Single] = "String"
+        self.pygmap[t.Literal.String.Double] = "String"
+        self.pygmap[t.Keyword] = "Conditional"
+        self.pygmap[t.Operator.Word] = "Conditional"
 
     @neovim.autocmd('BufEnter', pattern='nvim.py', eval='expand("<afile>")', sync=False)
     def autocmd_handler1(self, filename):
@@ -44,7 +56,6 @@ class Neosyntax(object):
     @neovim.function('HighlightBuffer', sync=False)
     def highlight_buffer(self, args):
         # XXX some ideas to help with flickering:
-        #   precompute entire buffer before doing any add calls, then do them all at once
         #   use cursorholdi instead of textchangedi
         #   still use textchangedi, but also use a timer, and if the highlight is less than X seconds old, don't recompute, just return
         #   in insert mode, only recompute highlight groups on the line, or couple of lines surrounding the cursor
@@ -54,13 +65,14 @@ class Neosyntax(object):
         # TODO - can I be more intelligent than doing the whole buffer every time? just the area around a change?
         fullbuf = [line for line in buf] # TODO is this necessary / efficient?
 
-        #  buf.clear_highlight(src_id=1, line_start=0, line_end=-1, async=True)
         addid = 1 if self.srcset else 2
         rmid  = 2 if self.srcset else 1
         self.srcset = not self.srcset
+        self.arglist = []
         for linenum, line in enumerate(fullbuf, start=0):
+            # TODO this is not only inefficient, it highlights things in correctly if they require multiple lines of context to identify
+            # need to figure out a way to send entire file to get_tokens_unprocessed() at once, while maintaining knowledge about line numbers
             for (index, tokentype, value) in mylexer.get_tokens_unprocessed(line):
-                cols = len(value)
                 # XXX issue with highlight groups
                 # if `:syntax off` is set from vimrc, which is the entire goal of this plugin
                 # then a lot (maybe all) of the language specific highlight groups will never be loaded
@@ -76,21 +88,13 @@ class Neosyntax(object):
                 # for a specific language if the generic way just won't work in all edge cases
                 # This should be possible both within this python code, and from vimscript
 
-                # and another TODO is to map pygments tokens to vim highlight groups, so i don't have to write these all out
-                if tokentype == pygments.token.Name.Builtin:
-                    buf.add_highlight("Function", line=linenum, col_start=index, col_end=index+cols, src_id=addid, async=True)
-                if tokentype == pygments.token.Name.Builtin.Pseudo:
-                    buf.add_highlight("Boolean", line=linenum, col_start=index, col_end=index+cols, src_id=addid, async=True)
-                elif tokentype == pygments.token.Comment.Single or tokentype == pygments.token.Comment.Hashbang:
-                    buf.add_highlight("Comment", line=linenum, col_start=index, col_end=index+cols, src_id=addid, async=True)
-                elif tokentype == pygments.token.Keyword.Namespace:
-                    buf.add_highlight("Include", line=linenum, col_start=index, col_end=index+cols, src_id=addid, async=True)
-                elif tokentype == pygments.token.Literal.Number.Integer:
-                    buf.add_highlight("Number", line=linenum, col_start=index, col_end=index+cols, src_id=addid, async=True)
-                elif tokentype == pygments.token.Literal.String.Single or tokentype == pygments.token.Literal.String.Double:
-                    buf.add_highlight("String", line=linenum, col_start=index, col_end=index+cols, src_id=addid, async=True)
-                elif tokentype == pygments.token.Keyword or tokentype == pygments.token.Operator.Word:
-                    buf.add_highlight("Conditional", line=linenum, col_start=index, col_end=index+cols, src_id=addid, async=True)
+                # compute all the add_highlight calls to be made
+                if tokentype in self.pygmap:
+                    self.arglist.append({'hl_group': self.pygmap[tokentype], 'line': linenum, 'col_start': index, 'col_end': index+len(value), 'src_id': addid, 'async': True})
 
+        # make the calls
+        for arg in self.arglist:
+            buf.add_highlight(**arg)
+
+        # clear old highlighting
         buf.clear_highlight(src_id=rmid, line_start=0, line_end=len(fullbuf), async=True)
-
