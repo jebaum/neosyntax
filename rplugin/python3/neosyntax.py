@@ -38,13 +38,15 @@ class Neosyntax(object):
                 # another TODO is to figure out what exactly a src_id is, and whether I need to use it
                 if tokentype == pygments.token.Name.Builtin:
                     buf.add_highlight("Function", line=linenum, col_start=index, col_end=index+cols, src_id=1, async=True)
+                if tokentype == pygments.token.Name.Builtin.Pseudo:
+                    buf.add_highlight("Boolean", line=linenum, col_start=index, col_end=index+cols, src_id=1, async=True)
                 elif tokentype == pygments.token.Comment.Single or tokentype == pygments.token.Comment.Hashbang:
                     buf.add_highlight("Comment", line=linenum, col_start=index, col_end=index+cols, src_id=1, async=True)
                 elif tokentype == pygments.token.Keyword.Namespace:
                     buf.add_highlight("Include", line=linenum, col_start=index, col_end=index+cols, src_id=4, async=True)
                 elif tokentype == pygments.token.Literal.Number.Integer:
                     buf.add_highlight("Number", line=linenum, col_start=index, col_end=index+cols, src_id=5, async=True)
-                elif tokentype == pygments.token.Literal.String.Single:
+                elif tokentype == pygments.token.Literal.String.Single or tokentype == pygments.token.Literal.String.Double:
                     buf.add_highlight("String", line=linenum, col_start=index, col_end=index+cols, src_id=6, async=True)
                 elif tokentype == pygments.token.Keyword or tokentype == pygments.token.Operator.Word:
-                    buf.add_highlight("Operator", line=linenum, col_start=index, col_end=index+cols, src_id=7, async=True)
+                    buf.add_highlight("Conditional", line=linenum, col_start=index, col_end=index+cols, src_id=7, async=True)
