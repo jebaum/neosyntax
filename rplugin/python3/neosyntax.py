@@ -68,7 +68,7 @@ class Neosyntax(object):
         addid = 1 if self.srcset else 2
         rmid  = 2 if self.srcset else 1
         self.srcset = not self.srcset
-        self.arglist = []
+        arglist = []
         for linenum, line in enumerate(fullbuf, start=0):
             # TODO this is not only inefficient, it highlights things in correctly if they require multiple lines of context to identify
             # need to figure out a way to send entire file to get_tokens_unprocessed() at once, while maintaining knowledge about line numbers
@@ -90,10 +90,10 @@ class Neosyntax(object):
 
                 # compute all the add_highlight calls to be made
                 if tokentype in self.pygmap:
-                    self.arglist.append({'hl_group': self.pygmap[tokentype], 'line': linenum, 'col_start': index, 'col_end': index+len(value), 'src_id': addid, 'async': True})
+                    arglist.append({'hl_group': self.pygmap[tokentype], 'line': linenum, 'col_start': index, 'col_end': index+len(value), 'src_id': addid, 'async': True})
 
         # make the calls
-        for arg in self.arglist:
+        for arg in arglist:
             buf.add_highlight(**arg)
 
         # clear old highlighting
