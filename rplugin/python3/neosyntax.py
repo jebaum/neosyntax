@@ -27,6 +27,9 @@ class Neosyntax(object):
         self.pygmap[t.Name.Decorator] = "PreProc"
         self.pygmap[t.Operator.Word] = "Conditional"
 
+    def msg(self, m):
+        self.nvim.command("echom '" + str(m) + "'")
+
     @neovim.autocmd('BufEnter', pattern='nvim.py', eval='expand("<afile>")', sync=False)
     def autocmd_handler1(self, filename):
         self.highlight_buffer(None)
