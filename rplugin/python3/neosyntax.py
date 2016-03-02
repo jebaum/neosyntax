@@ -13,15 +13,18 @@ class Neosyntax(object):
         self.srcset  = True
         self.pygmap  = {}
         t = pygments.token
-        self.pygmap[t.Name.Builtin] = "Function"
-        self.pygmap[t.Name.Builtin.Pseudo] = "Boolean"
-        self.pygmap[t.Comment.Single] = "Comment"
         self.pygmap[t.Comment.Hashbang] = "Comment"
+        self.pygmap[t.Comment.Single] = "Comment"
+        self.pygmap[t.Comment] = "Comment" # older versions of pygments don't have Single and Hashbang?
         self.pygmap[t.Keyword.Namespace] = "Include"
-        self.pygmap[t.Literal.Number.Integer] = "Number"
-        self.pygmap[t.Literal.String.Single] = "String"
-        self.pygmap[t.Literal.String.Double] = "String"
         self.pygmap[t.Keyword] = "Conditional"
+        self.pygmap[t.Literal.Number.Integer] = "Number"
+        self.pygmap[t.Literal.String.Double] = "String"
+        self.pygmap[t.Literal.String.Single] = "String"
+        self.pygmap[t.Literal.String] = "String" # same comment as above
+        self.pygmap[t.Name.Builtin.Pseudo] = "Boolean"
+        self.pygmap[t.Name.Builtin] = "Function"
+        self.pygmap[t.Name.Decorator] = "PreProc"
         self.pygmap[t.Operator.Word] = "Conditional"
 
     @neovim.autocmd('BufEnter', pattern='nvim.py', eval='expand("<afile>")', sync=False)
