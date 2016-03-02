@@ -1,2 +1,2 @@
-command! HighlightBuffer :call HighlightBuffer()
-command! UnHighlightBuffer :call UnHighlightBuffer()
+command! HighlightBuffer :call HighlightBuffer(bufnr('%'))
+command! UnHighlightBuffer :call UnHighlightBuffer(bufnr('%'))

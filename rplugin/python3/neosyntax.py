@@ -30,16 +30,16 @@ class Neosyntax(object):
     def msg(self, m):
         self.nvim.command("echom '" + str(m) + "'")
 
-    @neovim.autocmd('BufEnter', pattern='nvim.py', eval='expand("<afile>")', sync=False)
-    def autocmd_handler1(self, filename):
-        self.highlight_buffer(None)
+    @neovim.autocmd('BufEnter', pattern='*', eval='expand("<abuf>")', sync=False)
+    def autocmd_handler1(self, bufnr): # TODO how to pass in multiple arguments?
+        self.highlight_buffer(int(bufnr))
 
-    @neovim.autocmd('TextChanged', pattern='nvim.py', eval='expand("<afile>")', sync=False)
-    def autocmd_handler2(self, filename):
-        self.highlight_buffer(None)
+    @neovim.autocmd('TextChanged', pattern='nvim.py', eval='expand("<abuf>")', sync=False)
+    def autocmd_handler2(self, bufnr):
+        self.highlight_buffer(int(bufnr))
 
-    @neovim.autocmd('TextChangedI', pattern='nvim.py', eval='expand("<afile>")', sync=False)
-    def autocmd_handler3(self, filename):
+    @neovim.autocmd('TextChangedI', pattern='nvim.py', eval='expand("<abuf>")', sync=False)
+    def autocmd_handler3(self, bufnr):
         # TODO do special thing here if the user is currently typing inside a string or comment
         # to extend that highlight group a bunch of columns ahead
         # not sure where the best place to implement that will be
@@ -63,34 +63,43 @@ class Neosyntax(object):
         # throw away and subsequent calls that come in before the tmier is up
 
         # maybe highlight_buffer should take lines as an argument to facilitate the viewport shit?
-        self.highlight_buffer(None)
+        self.highlight_buffer(int(bufnr))
 
     @neovim.function('UnHighlightBuffer', sync=False)
-    def unhighlight_buffer(self, args):
-        buf     = self.nvim.buffers[0] # TODO can't hardcode this
-        end     = len([line for line in buf])
+    def unhighlight_buffer(self, bufnr):
+        bufnr = int(bufnr)
+        for b in self.nvim.buffers:
+            if b.number == bufnr: # TODO what if it isn't found?
+                buf = b
+                break
+        end = len([line for line in buf])
         buf.clear_highlight(src_id=1, line_start=0, line_end=end, async=True)
         buf.clear_highlight(src_id=2, line_start=0, line_end=end, async=True)
 
 
     @neovim.function('HighlightBuffer', sync=False)
-    def highlight_buffer(self, args):
+    def highlight_buffer(self, bufnr):
         # XXX some ideas to help with flickering:
         #   use cursorholdi instead of textchangedi
         #   still use textchangedi, but also use a timer, and if the highlight is less than X seconds old, don't recompute, just return
         #   in insert mode, only recompute highlight groups on the line, or couple of lines surrounding the cursor
         #   get the viewport of the current window, render that region only or first before the rest of the buffer
                                                 # also, should cache a map of buffer -> lexer so this doesn't have to be done every time
-        buf     = self.nvim.buffers[0] # TODO can't hardcode this either
+        #  self.msg(len(self.nvim.buffers))
+        #  self.msg(len(self.nvim.buffers[0].number))
+        #  self.msg(len(self.nvim.buffers[1].number))
+        for b in self.nvim.buffers:
+            if b.number == bufnr: # TODO what if it isn't found?
+                buf = b
+                break
         # TODO - can I be more intelligent than doing the whole buffer every time? just the area around a change?
 
         fullbuf = "\n".join([line for line in buf]) # TODO can i cache this somehow?
         mylexer = pygments.lexers.guess_lexer(fullbuf) # TODO cache this
+        self.msg(mylexer)
 
         addid = 1 if self.srcset else 2
         rmid  = 2 if self.srcset else 1
-        #  testlexer = pygments.lexers.guess_lexer(fullbuf)
-        #  self.msg(testlexer)
         self.srcset = not self.srcset
         arglist = []
         linenum = 0
