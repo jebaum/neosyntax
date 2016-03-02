@@ -34,6 +34,10 @@ class Neosyntax(object):
 
     @neovim.autocmd('TextChangedI', pattern='nvim.py', eval='expand("<afile>")', sync=False)
     def autocmd_handler3(self, filename):
+        # TODO do special thing here if the user is currently typing inside a string or comment
+        # to extend that highlight group a bunch of columns ahead
+        # not sure where the best place to implement that will be
+
         # TODO I was hoping that performance with syntax highlighting being done by this autocmd
         # would be comparable to plain old :syntax off and without this plugin
         # I think it is better, although I'll have to find a way to test that empirically
@@ -48,6 +52,11 @@ class Neosyntax(object):
         # TODO figure out a way to queue these calls somehow? with the swapping src_id strategy,
         # flicker is gone when typing fast in insert mode, but typing too fast can still cause a
         # call backlog that can either crash the python host or just appear as lots of lag to the user
+
+        # a timer? when this is called, start a timer that counts down from X seconds
+        # throw away and subsequent calls that come in before the tmier is up
+
+        # maybe highlight_buffer should take lines as an argument to facilitate the viewport shit?
         self.highlight_buffer(None)
 
     @neovim.function('UnHighlightBuffer', sync=False)
@@ -69,34 +78,51 @@ class Neosyntax(object):
                                                 # also, should cache a map of buffer -> lexer so this doesn't have to be done every time
         buf     = self.nvim.buffers[0] # TODO can't hardcode this either
         # TODO - can I be more intelligent than doing the whole buffer every time? just the area around a change?
-        fullbuf = [line for line in buf] # TODO is this necessary / efficient?
+
+        fullbuf = "\n".join([line for line in buf]) # TODO can i cache this somehow?
 
         addid = 1 if self.srcset else 2
         rmid  = 2 if self.srcset else 1
         self.srcset = not self.srcset
         arglist = []
-        for linenum, line in enumerate(fullbuf, start=0):
-            # TODO this is not only inefficient, it highlights things incorrectly if they require multiple lines of context to identify
-            # need to figure out a way to send entire file to get_tokens_unprocessed() at once, while maintaining knowledge about line numbers
-            for (index, tokentype, value) in mylexer.get_tokens_unprocessed(line):
-                # XXX issue with highlight groups
-                # if `:syntax off` is set from vimrc, which is the entire goal of this plugin
-                # then a lot (maybe all) of the language specific highlight groups will never be loaded
-                # e.g., the "Comment" highlight group will probably exist (assuming the colorscheme
-                # defines it), but "pythonComment" will not.
-                # This isn't great, because I want to maintain the ability of users to modify individual
-                # language highlight groups if they feel like it
-                # I am not going to worry about this just yet, but I will need to find a way to address this eventually
-                # For now, my solution is to just not use those language specific groups while I get the basics working
-                # Also, it would be really swell if I didn't have to write this code for every single languages someone
-                # might edit in vim. Actually, that's really the only way to do it.
-                # I need to make the core functionality as generic as possible, while having an easy way to override settings
-                # for a specific language if the generic way just won't work in all edge cases
-                # This should be possible both within this python code, and from vimscript
+        linenum = 0
+        lastnewlineindex = -1
+        for (index, tokentype, value) in mylexer.get_tokens_unprocessed(fullbuf):
+            # XXX issue with highlight groups
+            # if `:syntax off` is set from vimrc, which is the entire goal of this plugin
+            # then a lot (maybe all) of the language specific highlight groups will never be loaded
+            # e.g., the "Comment" highlight group will probably exist (assuming the colorscheme
+            # defines it), but "pythonComment" will not.
+            # This isn't great, because I want to maintain the ability of users to modify individual
+            # language highlight groups if they feel like it
+            # I am not going to worry about this just yet, but I will need to find a way to address this eventually
+            # For now, my solution is to just not use those language specific groups while I get the basics working
+            # Also, it would be really swell if I didn't have to write this code for every single languages someone
+            # might edit in vim. Actually, that's really the only way to do it.
+            # I need to make the core functionality as generic as possible, while having an easy way to override settings
+            # for a specific language if the generic way just won't work in all edge cases
+            # This should be possible both within this python code, and from vimscript
 
-                # compute all the add_highlight calls to be made
-                if tokentype in self.pygmap:
-                    arglist.append({'hl_group': self.pygmap[tokentype], 'line': linenum, 'col_start': index, 'col_end': index+len(value), 'src_id': addid, 'async': True})
+            # compute all the add_highlight calls to be made
+            #  self.nvim.command("echom '" + + "'")
+            #  if tokentype == pygments.token.Comment.Single and linenum == 7:
+                #  self.nvim.command("echom '" + str(value) + "'")
+                #  self.nvim.command("echom '" + str(index) + "'")
+                #  self.nvim.command("echom '" + str(colstart) + "'")
+                #  self.nvim.command("echom '" + str(lastnewlineindex) + "'")
+                #  self.nvim.command("echom '" + str(linenum) + "'")
+                #  self.nvim.command("echom '" + str(len(value)) + "'")
+
+            # entire file is sent to pygments in a single big list, so column indexes are relative to the entire file, not per line
+            # keep track of the last index where a newline was found
+            # the index for the 0th column for the next line will be 1 after the lastnewlineindex
+            # at the same time, also track line numbers
+            if value == '\n':
+                linenum += 1
+                lastnewlineindex = index
+            elif tokentype in self.pygmap:
+                colstart = index - (lastnewlineindex + 1)
+                arglist.append({'hl_group': self.pygmap[tokentype], 'line': linenum, 'col_start': colstart, 'col_end': colstart+len(value), 'src_id': addid, 'async': True})
 
         # make the calls
         for arg in arglist:
