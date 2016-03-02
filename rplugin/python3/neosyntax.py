@@ -34,11 +34,11 @@ class Neosyntax(object):
     def autocmd_handler1(self, bufnr): # TODO how to pass in multiple arguments?
         self.highlight_buffer(int(bufnr))
 
-    @neovim.autocmd('TextChanged', pattern='nvim.py', eval='expand("<abuf>")', sync=False)
+    @neovim.autocmd('TextChanged', pattern='*', eval='expand("<abuf>")', sync=False)
     def autocmd_handler2(self, bufnr):
         self.highlight_buffer(int(bufnr))
 
-    @neovim.autocmd('TextChangedI', pattern='nvim.py', eval='expand("<abuf>")', sync=False)
+    @neovim.autocmd('TextChangedI', pattern='*', eval='expand("<abuf>")', sync=False)
     def autocmd_handler3(self, bufnr):
         # TODO do special thing here if the user is currently typing inside a string or comment
         # to extend that highlight group a bunch of columns ahead
@@ -84,10 +84,8 @@ class Neosyntax(object):
         #   still use textchangedi, but also use a timer, and if the highlight is less than X seconds old, don't recompute, just return
         #   in insert mode, only recompute highlight groups on the line, or couple of lines surrounding the cursor
         #   get the viewport of the current window, render that region only or first before the rest of the buffer
-                                                # also, should cache a map of buffer -> lexer so this doesn't have to be done every time
-        #  self.msg(len(self.nvim.buffers))
-        #  self.msg(len(self.nvim.buffers[0].number))
-        #  self.msg(len(self.nvim.buffers[1].number))
+        # also, should cache a map of buffer -> lexer so this doesn't have to be done every time
+
         for b in self.nvim.buffers:
             if b.number == bufnr: # TODO what if it isn't found?
                 buf = b
@@ -95,16 +93,24 @@ class Neosyntax(object):
         # TODO - can I be more intelligent than doing the whole buffer every time? just the area around a change?
 
         fullbuf = "\n".join([line for line in buf]) # TODO can i cache this somehow?
+        self.msg(fullbuf)
         mylexer = pygments.lexers.guess_lexer(fullbuf) # TODO cache this
-        self.msg(mylexer)
 
+        # TODO these numbers need to be per buffer
         addid = 1 if self.srcset else 2
         rmid  = 2 if self.srcset else 1
         self.srcset = not self.srcset
+
         arglist = []
         linenum = 0
         lastnewlineindex = -1
         for (index, tokentype, value) in mylexer.get_tokens_unprocessed(fullbuf):
+            self.msg("line: " + str(linenum))
+            self.msg("idx : " + str(index))
+            self.msg("lni : " + str(lastnewlineindex))
+            self.msg("tok : " + str(tokentype))
+            self.msg("val : " + str(value))
+            self.msg("--------")
             # XXX issue with highlight groups
             # if `:syntax off` is set from vimrc, which is the entire goal of this plugin
             # then a lot (maybe all) of the language specific highlight groups will never be loaded
@@ -124,9 +130,20 @@ class Neosyntax(object):
             # keep track of the last index where a newline was found
             # the index for the 0th column for the next line will be 1 after the lastnewlineindex
             # at the same time, also track line numbers
+
+            # TODO newlines are their own tokens in python, but not in bash, and probably other languages
+            # I assume any language where newlines don't have semantic meaning won't have them as tokens
+            # need to find a better way to keep track of line numbers
+            # shit.
+            # so i can either override each lexer that doesn't have newlines as tokens, see here:
+                # http://pygments.org/docs/lexerdevelopment/#modifying-token-streams
+            # or, note down the byte index of newlines in the fullbuf stream and work with that
+            # first method might be marginally faster, but is so ugly it makes me want to cry
+            # probably will go with second method.
             if value == '\n':
                 linenum += 1
                 lastnewlineindex = index
+                #  self.msg('found newline')
             elif tokentype in self.pygmap:
                 colstart = index - (lastnewlineindex + 1)
                 # precompute all the add_highlight calls to be made
