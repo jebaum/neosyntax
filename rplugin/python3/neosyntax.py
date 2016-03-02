@@ -15,7 +15,7 @@ class Neosyntax(object):
         t = pygments.token
         self.pygmap[t.Name.Builtin] = "Function"
         self.pygmap[t.Name.Builtin.Pseudo] = "Boolean"
-        self.pygmap[t.Comment.Sinle] = "Comment"
+        self.pygmap[t.Comment.Single] = "Comment"
         self.pygmap[t.Comment.Hashbang] = "Comment"
         self.pygmap[t.Keyword.Namespace] = "Include"
         self.pygmap[t.Literal.Number.Integer] = "Number"
