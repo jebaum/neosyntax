@@ -80,15 +80,17 @@ class Neosyntax(object):
         #   still use textchangedi, but also use a timer, and if the highlight is less than X seconds old, don't recompute, just return
         #   in insert mode, only recompute highlight groups on the line, or couple of lines surrounding the cursor
         #   get the viewport of the current window, render that region only or first before the rest of the buffer
-        mylexer = pygments.lexers.PythonLexer() # TODO  can't hardcode this, need to guess the correct lexer based on buffer name and contents
                                                 # also, should cache a map of buffer -> lexer so this doesn't have to be done every time
         buf     = self.nvim.buffers[0] # TODO can't hardcode this either
         # TODO - can I be more intelligent than doing the whole buffer every time? just the area around a change?
 
         fullbuf = "\n".join([line for line in buf]) # TODO can i cache this somehow?
+        mylexer = pygments.lexers.guess_lexer(fullbuf) # TODO cache this
 
         addid = 1 if self.srcset else 2
         rmid  = 2 if self.srcset else 1
+        #  testlexer = pygments.lexers.guess_lexer(fullbuf)
+        #  self.msg(testlexer)
         self.srcset = not self.srcset
         arglist = []
         linenum = 0
@@ -109,16 +111,6 @@ class Neosyntax(object):
             # for a specific language if the generic way just won't work in all edge cases
             # This should be possible both within this python code, and from vimscript
 
-            # compute all the add_highlight calls to be made
-            #  self.nvim.command("echom '" + + "'")
-            #  if tokentype == pygments.token.Comment.Single and linenum == 7:
-                #  self.nvim.command("echom '" + str(value) + "'")
-                #  self.nvim.command("echom '" + str(index) + "'")
-                #  self.nvim.command("echom '" + str(colstart) + "'")
-                #  self.nvim.command("echom '" + str(lastnewlineindex) + "'")
-                #  self.nvim.command("echom '" + str(linenum) + "'")
-                #  self.nvim.command("echom '" + str(len(value)) + "'")
-
             # entire file is sent to pygments in a single big list, so column indexes are relative to the entire file, not per line
             # keep track of the last index where a newline was found
             # the index for the 0th column for the next line will be 1 after the lastnewlineindex
@@ -128,9 +120,10 @@ class Neosyntax(object):
                 lastnewlineindex = index
             elif tokentype in self.pygmap:
                 colstart = index - (lastnewlineindex + 1)
+                # precompute all the add_highlight calls to be made
                 arglist.append({'hl_group': self.pygmap[tokentype], 'line': linenum, 'col_start': colstart, 'col_end': colstart+len(value), 'src_id': addid, 'async': True})
 
-        # make the calls
+        # done computing, make the calls
         for arg in arglist:
             buf.add_highlight(**arg)
 
